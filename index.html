@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Media Generator</title>
+    <link rel="stylesheet" href="index.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+  <script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.17.0"
+  }
+}
+</script>
+</head>
+  <body>
+    <main>
+      <header>
+        <h1>AI Media Generator</h1>
+        <p>Generate unique icons, videos, and audio using AI.</p>
+      </header>
+
+      <div class="mode-selector">
+        <button id="mode-icon" class="mode-btn active" aria-pressed="true">Icon Generator</button>
+        <button id="mode-video" class="mode-btn" aria-pressed="false">Video Generator</button>
+        <button id="mode-audio" class="mode-btn" aria-pressed="false">Audio Generator</button>
+      </div>
+
+      <div class="prompt-container">
+        <div class="prompt-label-header">
+          <label for="prompt-input">Your Creative Idea</label>
+          <button id="suggest-prompt-btn" aria-label="Suggest a creative prompt" title="Suggest a creative prompt">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.09 16.05a1 1 0 0 1-.59.95 1 1 0 0 1-1.41-.41l-2.09-3.59a1 1 0 0 1 1.73-1l2.35 4.06Z"/><path d="M12 2a9 9 0 0 0-4.95 17.14a1 1 0 0 1-.22 1.21l-1.63 1.63a1 1 0 0 1-1.42 0a1 1 0 0 1 0-1.42l1.63-1.63a1 1 0 0 1 1.21-.22A9 9 0 1 0 12 2Z"/></svg>
+            <span>Suggest</span>
+          </button>
+        </div>
+        <textarea
+          id="prompt-input"
+          rows="4"
+          placeholder="e.g., A minimalist logo of a brain made of colorful geometric shapes"
+          list="prompt-history"
+        ></textarea>
+        <datalist id="prompt-history"></datalist>
+
+        <div id="icon-options-container">
+            <label for="negative-prompt-input" class="negative-prompt-label">Things to Avoid (Negative Prompt)</label>
+            <textarea
+              id="negative-prompt-input"
+              rows="2"
+              placeholder="e.g., text, watermarks, ugly, deformed"
+            ></textarea>
+
+            <div class="style-and-quality-container">
+              <fieldset class="style-selector">
+                <legend>Icon Style</legend>
+                <div class="radio-group">
+                  <div class="radio-option">
+                    <input type="radio" id="style-flat" name="icon-style" value="flat icon style" checked>
+                    <label for="style-flat">Flat</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="style-3d" name="icon-style" value="3d render style">
+                    <label for="style-3d">3D</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="style-gradient" name="icon-style" value="gradient color style">
+                    <label for="style-gradient">Gradient</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="style-outline" name="icon-style" value="outline sketch style">
+                    <label for="style-outline">Outline</label>
+                  </div>
+                </div>
+              </fieldset>
+              <fieldset class="quality-selector">
+                <legend>Quality</legend>
+                <div class="radio-group">
+                  <div class="radio-option">
+                    <input type="radio" id="quality-standard" name="quality" value="standard" checked>
+                    <label for="quality-standard">Standard</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="quality-high" name="quality" value="high">
+                    <label for="quality-high">High Detail</label>
+                  </div>
+                </div>
+              </fieldset>
+            </div>
+            
+            <div class="options-container">
+                <fieldset class="number-selector">
+                    <legend>Number</legend>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="number-1" name="number-of-icons" value="1" checked>
+                            <label for="number-1">1</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="number-4" name="number-of-icons" value="4">
+                            <label for="number-4">4</label>
+                        </div>
+                    </div>
+                </fieldset>
+                <fieldset class="format-selector">
+                    <legend>Output Format</legend>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="format-jpeg" name="format" value="image/jpeg" checked>
+                            <label for="format-jpeg">JPEG</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="format-png" name="format" value="image/png">
+                            <label for="format-png">PNG</label>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <fieldset class="aspect-ratio-selector">
+                  <legend>Aspect Ratio</legend>
+                  <select id="aspect-ratio-select" aria-label="Select aspect ratio">
+                      <option value="1:1" selected>1:1 (Square)</option>
+                      <option value="4:3">4:3 (Landscape)</option>
+                      <option value="3:4">3:4 (Portrait)</option>
+                      <option value="16:9">16:9 (Widescreen)</option>
+                      <option value="9:16">9:16 (Tall)</option>
+                  </select>
+                </fieldset>
+
+                <fieldset class="background-color-selector">
+                  <legend>Background</legend>
+                  <input type="color" id="background-color-picker" value="#f1f3ed" aria-label="Select background color">
+                </fieldset>
+
+                <fieldset class="transparency-selector">
+                  <legend>&nbsp;</legend>
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" id="transparency-toggle" name="transparency">
+                    <label for="transparency-toggle">Transparent</label>
+                  </div>
+                </fieldset>
+            </div>
+
+            <div class="presets-container">
+              <label for="presets-select">Presets</label>
+              <div class="presets-controls">
+                <select id="presets-select">
+                  <option value="">Load a preset...</option>
+                </select>
+                <button id="delete-preset-btn" aria-label="Delete selected preset" disabled>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>
+              </div>
+              <div class="save-preset-controls">
+                <input type="text" id="preset-name-input" placeholder="Enter preset name...">
+                <button id="save-preset-btn" aria-label="Save current settings as a preset">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                  <span>Save</span>
+                </button>
+              </div>
+            </div>
+        </div>
+        
+        <div id="video-options-container" class="hidden">
+            <div class="style-and-quality-container">
+                <fieldset class="style-selector">
+                    <legend>Video Style</legend>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="video-style-cinematic" name="video-style" value="cinematic" checked>
+                            <label for="video-style-cinematic">Cinematic</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="video-style-animated" name="video-style" value="animated">
+                            <label for="video-style-animated">Animated</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="video-style-documentary" name="video-style" value="documentary">
+                            <label for="video-style-documentary">Documentary</label>
+                        </div>
+                         <div class="radio-option">
+                            <input type="radio" id="video-style-timelapse" name="video-style" value="time-lapse">
+                            <label for="video-style-timelapse">Time-lapse</label>
+                        </div>
+                    </div>
+                </fieldset>
+                <fieldset class="quality-selector">
+                    <legend>Video Quality</legend>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="video-quality-standard" name="video-quality" value="standard" checked>
+                            <label for="video-quality-standard">Standard</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="video-quality-high" name="video-quality" value="high">
+                            <label for="video-quality-high">High Definition</label>
+                        </div>
+                    </div>
+                </fieldset>
+                <fieldset class="quality-selector">
+                    <legend>Resolution</legend>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="video-resolution-720p" name="video-resolution" value="720p" checked>
+                            <label for="video-resolution-720p">720p (HD)</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="video-resolution-1080p" name="video-resolution" value="1080p">
+                            <label for="video-resolution-1080p">1080p (Full HD)</label>
+                        </div>
+                    </div>
+                </fieldset>
+                <fieldset class="quality-selector">
+                    <legend>Duration</legend>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="video-duration-short" name="video-duration" value="short">
+                            <label for="video-duration-short">Short (~5s)</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="video-duration-medium" name="video-duration" value="medium" checked>
+                            <label for="video-duration-medium">Medium (~10s)</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="video-duration-long" name="video-duration" value="long">
+                            <label for="video-duration-long">Long (~15s)</label>
+                        </div>
+                    </div>
+                </fieldset>
+                <fieldset class="audio-track-selector">
+                  <legend>Audio Track</legend>
+                  <div class="radio-group">
+                      <div class="radio-option">
+                          <input type="radio" id="audio-track-none" name="video-audio-track" value="none" checked>
+                          <label for="audio-track-none">None</label>
+                      </div>
+                      <div class="radio-option">
+                          <input type="radio" id="audio-track-cinematic" name="video-audio-track" value="cinematic-music">
+                          <label for="audio-track-cinematic">Cinematic Music</label>
+                      </div>
+                      <div class="radio-option">
+                          <input type="radio" id="audio-track-upbeat" name="video-audio-track" value="upbeat-music">
+                          <label for="audio-track-upbeat">Upbeat Music</label>
+                      </div>
+                      <div class="radio-option">
+                          <input type="radio" id="audio-track-ambient" name="video-audio-track" value="ambient-sound">
+                          <label for="audio-track-ambient">Ambient Sound</label>
+                      </div>
+                      <div class="radio-option">
+                          <input type="radio" id="audio-track-sfx" name="video-audio-track" value="sfx">
+                          <label for="audio-track-sfx">AI Generated SFX</label>
+                      </div>
+                  </div>
+              </fieldset>
+              <fieldset class="video-aspect-ratio-selector">
+                <legend>Aspect Ratio</legend>
+                <div class="radio-group">
+                    <div class="radio-option">
+                        <input type="radio" id="video-aspect-16x9" name="video-aspect-ratio" value="16:9" checked>
+                        <label for="video-aspect-16x9">16:9 Widescreen</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" id="video-aspect-1x1" name="video-aspect-ratio" value="1:1">
+                        <label for="video-aspect-1x1">1:1 Square</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" id="video-aspect-9x16" name="video-aspect-ratio" value="9:16">
+                        <label for="video-aspect-9x16">9:16 Vertical</label>
+                    </div>
+                </div>
+            </fieldset>
+            </div>
+             <div class="advanced-settings-container">
+                <fieldset>
+                    <legend>Advanced Settings</legend>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="ffmpeg-toggle" name="ffmpeg-toggle">
+                        <label for="ffmpeg-toggle">Enable Custom Commands</label>
+                    </div>
+                    <textarea id="ffmpeg-commands-input" rows="3" placeholder="e.g., -vf 'eq=contrast=1.5:brightness=0.1' -an" disabled></textarea>
+                </fieldset>
+            </div>
+        </div>
+
+        <div id="audio-options-container" class="hidden">
+            <div class="audio-options-group">
+                <fieldset class="style-selector">
+                    <legend>Voice</legend>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="voice-male" name="audio-voice" value="male" checked>
+                            <label for="voice-male">Male</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="voice-female" name="audio-voice" value="female">
+                            <label for="voice-female">Female</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="voice-child" name="audio-voice" value="child">
+                            <label for="voice-child">Child</label>
+                        </div>
+                    </div>
+                </fieldset>
+                 <fieldset class="style-selector">
+                    <legend>Accent</legend>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="accent-american" name="audio-accent" value="american" checked>
+                            <label for="accent-american">American</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="accent-british" name="audio-accent" value="british">
+                            <label for="accent-british">British</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="accent-australian" name="audio-accent" value="australian">
+                            <label for="accent-australian">Australian</label>
+                        </div>
+                    </div>
+                </fieldset>
+                <fieldset class="quality-selector">
+                    <legend>Tone</legend>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="tone-professional" name="audio-tone" value="professional" checked>
+                            <label for="tone-professional">Professional</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="tone-casual" name="audio-tone" value="casual">
+                            <label for="tone-casual">Casual</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="tone-energetic" name="audio-tone" value="energetic">
+                            <label for="tone-energetic">Energetic</label>
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button id="generate-btn" aria-label="Generate icon (Ctrl+Enter)" title="Generate icon (Ctrl+Enter)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
+              <span>Generate Icon</span>
+            </button>
+            <button id="undo-btn" aria-label="Undo last generation (Ctrl+Z)" title="Undo last generation (Ctrl+Z)" disabled>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+                <span>Undo</span>
+            </button>
+            <button id="redo-btn" aria-label="Redo last action (Ctrl+Y / Cmd+Shift+Z)" title="Redo last action (Ctrl+Y / Cmd+Shift+Z)" disabled>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 0 9 9 9 9 0 0 0 6-2.3L21 13"/></svg>
+                <span>Redo</span>
+            </button>
+            <button id="clear-btn" aria-label="Clear prompt and image (Esc)" title="Clear prompt and image (Esc)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                <span>Clear</span>
+            </button>
+        </div>
+      </div>
+      <div id="result-container">
+        <div id="loading-container" class="hidden">
+          <div id="loading-spinner" role="status" aria-label="Loading"></div>
+          <p id="loading-message"></p>
+        </div>
+        <div id="result-content" class="hidden">
+          <div id="media-container"></div>
+          <button id="download-all-btn" class="hidden" aria-label="Download all icons as a zip file">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+            <span>Download All (.zip)</span>
+          </button>
+        </div>
+        <p id="error-message" class="hidden" aria-live="assertive"></p>
+      </div>
+    </main>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script type="module" src="index.tsx"></script>
+  </body>
+</html>
