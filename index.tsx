@@ -37,7 +37,15 @@ const App = () => {
   // Video specific elements
   const ffmpegToggle = document.getElementById('ffmpeg-toggle') as HTMLInputElement;
   const ffmpegCommandsInput = document.getElementById('ffmpeg-commands-input') as HTMLTextAreaElement;
+  const textOverlayToggle = document.getElementById('text-overlay-toggle') as HTMLInputElement;
+  const textOverlayInput = document.getElementById('text-overlay-input') as HTMLInputElement;
+  const textOverlayPositionRadios = document.querySelectorAll('input[name="text-overlay-position"]');
+  const videoChromaKeyToggle = document.getElementById('chroma-key-toggle') as HTMLInputElement;
+  const videoChromaKeyColorPicker = document.getElementById('chroma-key-color-picker') as HTMLInputElement;
   
+  // Audio specific elements
+  const audioDurationInput = document.getElementById('audio-duration-seconds') as HTMLInputElement;
+
   // Preset elements
   const presetsSelect = document.getElementById('presets-select') as HTMLSelectElement;
   const presetNameInput = document.getElementById('preset-name-input') as HTMLInputElement;
@@ -91,15 +99,39 @@ const App = () => {
   
   interface Preset {
       name: string;
+      mode: AppMode;
       prompt: string;
-      negativePrompt: string;
-      format: ImageFormat;
-      aspectRatio: AspectRatio;
-      iconStyle: string;
-      quality: string;
-      backgroundColor: string;
-      transparentBackground: boolean;
-      numberOfIcons: number;
+      // Icon settings
+      negativePrompt?: string;
+      format?: ImageFormat;
+      aspectRatio?: AspectRatio;
+      iconStyle?: string;
+      quality?: string;
+      backgroundColor?: string;
+      transparentBackground?: boolean;
+      numberOfIcons?: number;
+      // Video settings
+      videoQuality?: string;
+      videoStyle?: string;
+      videoAudioTrack?: string;
+      videoAspectRatio?: string;
+      videoResolution?: string;
+      videoDuration?: string;
+      videoFfmpegEnabled?: boolean;
+      videoFfmpegCommands?: string;
+      videoTextOverlayEnabled?: boolean;
+      videoTextOverlayText?: string;
+      videoTextOverlayPosition?: string;
+      videoChromaKeyEnabled?: boolean;
+      videoChromaKeyColor?: string;
+      // Audio settings
+      audioVoice?: string;
+      audioAccent?: string;
+      audioTone?: string;
+      audioDurationSeconds?: number;
+      audioReverb?: string;
+      audioEcho?: string;
+      audioPitch?: string;
   }
 
   interface SessionState {
@@ -121,9 +153,19 @@ const App = () => {
     videoDuration?: string;
     videoFfmpegEnabled?: boolean;
     videoFfmpegCommands?: string;
+    videoTextOverlayEnabled?: boolean;
+    videoTextOverlayText?: string;
+    videoTextOverlayPosition?: string;
+    videoChromaKeyEnabled?: boolean;
+    videoChromaKeyColor?: string;
     audioVoice?: string;
     audioAccent?: string;
     audioTone?: string;
+    audioDuration?: string; // For backward compatibility
+    audioDurationSeconds?: number;
+    audioReverb?: string;
+    audioEcho?: string;
+    audioPitch?: string;
   }
 
   let currentMode: AppMode = 'icon';
@@ -193,9 +235,95 @@ const App = () => {
     return selectedRadio?.value || 'professional';
   }
 
+  const getAudioDurationSeconds = (): number => {
+    const value = parseInt(audioDurationInput.value, 10);
+    if (isNaN(value) || value < 1) return 1;
+    if (value > 36000) return 36000;
+    return value;
+  };
+
+  const getSelectedAudioReverb = (): string => {
+    const selectedRadio = document.querySelector('input[name="audio-reverb"]:checked') as HTMLInputElement;
+    return selectedRadio?.value || 'none';
+  }
+  const getSelectedAudioEcho = (): string => {
+    const selectedRadio = document.querySelector('input[name="audio-echo"]:checked') as HTMLInputElement;
+    return selectedRadio?.value || 'none';
+  }
+  const getSelectedAudioPitch = (): string => {
+    const selectedRadio = document.querySelector('input[name="audio-pitch"]:checked') as HTMLInputElement;
+    return selectedRadio?.value || 'normal';
+  }
+
   const getSelectedNumberOfIcons = (): number => {
     const selectedRadio = document.querySelector('input[name="number-of-icons"]:checked') as HTMLInputElement;
     return selectedRadio ? parseInt(selectedRadio.value, 10) : 1;
+  };
+
+  const showError = (message: string) => {
+    if (errorMessage) {
+      errorMessage.textContent = message;
+      errorMessage.classList.remove('hidden');
+    }
+    if (resultContent) {
+      resultContent.classList.add('hidden');
+    }
+  };
+
+  const updateButtonStates = () => {
+    const hasPrompt = promptInput.value.trim().length > 0;
+    generateBtn.disabled = !hasPrompt;
+    undoBtn.disabled = undoStack.length === 0;
+    redoBtn.disabled = redoStack.length === 0;
+    
+    const hasContent = hasPrompt || (resultContent && !resultContent.classList.contains('hidden'));
+    clearBtn.disabled = !hasContent;
+
+    const hasImages = currentState && currentState.imageUrls && currentState.imageUrls.length > 0;
+    if (downloadAllBtn) {
+        downloadAllBtn.disabled = !hasImages;
+    }
+  };
+  
+  const getPromptHistory = (): string[] => {
+    try {
+        const storedHistory = localStorage.getItem(PROMPT_HISTORY_STORAGE_KEY);
+        return storedHistory ? JSON.parse(storedHistory) : [];
+    } catch (e) {
+        console.error("Failed to parse prompt history:", e);
+        return [];
+    }
+  };
+
+  const savePromptHistory = (history: string[]) => {
+      try {
+          localStorage.setItem(PROMPT_HISTORY_STORAGE_KEY, JSON.stringify(history));
+      } catch (e) {
+          console.error("Failed to save prompt history:", e);
+      }
+  };
+
+  const addToPromptHistory = (prompt: string) => {
+    if (!prompt) return;
+    let history = getPromptHistory();
+    history = history.filter(p => p.toLowerCase() !== prompt.toLowerCase());
+    history.unshift(prompt);
+    if (history.length > MAX_PROMPT_HISTORY_SIZE) {
+        history = history.slice(0, MAX_PROMPT_HISTORY_SIZE);
+    }
+    savePromptHistory(history);
+  };
+
+  const populatePromptHistoryDatalist = () => {
+    const history = getPromptHistory();
+    if (promptHistoryDatalist) {
+        promptHistoryDatalist.innerHTML = '';
+        history.forEach(prompt => {
+            const option = document.createElement('option');
+            option.value = prompt;
+            promptHistoryDatalist.appendChild(option);
+        });
+    }
   };
 
   const handleGeneration = () => {
@@ -215,15 +343,14 @@ const App = () => {
     }
   };
 
-  // Function to create a placeholder WAV file blob for simulation
-  const createPlaceholderWavBlob = (): Blob => {
+  const createPlaceholderWavBlob = (durationSeconds: number): Blob => {
       const RIFF = "RIFF", WAVE = "WAVE", fmt_ = "fmt ", data = "data";
-      const sampleRate = 44100, numChannels = 1, bitsPerSample = 16, durationSeconds = 1;
+      const sampleRate = 44100, numChannels = 1, bitsPerSample = 16;
       
-      const subchunk1Size = 16; // PCM
+      const subchunk1Size = 16;
       const blockAlign = numChannels * bitsPerSample / 8;
       const byteRate = sampleRate * blockAlign;
-      const subchunk2Size = durationSeconds * sampleRate * blockAlign;
+      const subchunk2Size = Math.floor(durationSeconds * sampleRate * blockAlign);
       const chunkSize = 36 + subchunk2Size;
 
       const buffer = new ArrayBuffer(44 + subchunk2Size);
@@ -243,9 +370,180 @@ const App = () => {
       writeString(view, 36, data);
       view.setUint32(40, subchunk2Size, true);
 
+      for (let i = 0; i < subchunk2Size / 2; i++) {
+          const time = i / sampleRate;
+          const amplitude = Math.sin(time * 2 * Math.PI * 440) * 32767;
+          view.setInt16(44 + i * 2, amplitude, true);
+      }
+
       return new Blob([view], { type: 'audio/wav' });
   };
   
+  const audioBufferToWav = (buffer: AudioBuffer): Blob => {
+    const numOfChan = buffer.numberOfChannels,
+        len = buffer.length * numOfChan * 2 + 44,
+        bufferArr = new ArrayBuffer(len),
+        view = new DataView(bufferArr),
+        channels = [],
+        sampleRate = buffer.sampleRate;
+
+    let offset = 0,
+        pos = 0;
+
+    const setUint16 = (data: number) => {
+        view.setUint16(pos, data, true);
+        pos += 2;
+    }
+
+    const setUint32 = (data: number) => {
+        view.setUint32(pos, data, true);
+        pos += 4;
+    }
+
+    writeString(view, pos, 'RIFF'); pos += 4;
+    setUint32(len - 8);
+    writeString(view, pos, 'WAVE'); pos += 4;
+
+    writeString(view, pos, 'fmt '); pos += 4;
+    setUint32(16);
+    setUint16(1); // PCM
+    setUint16(numOfChan);
+    setUint32(sampleRate);
+    setUint32(sampleRate * 2 * numOfChan); // byte rate
+    setUint16(numOfChan * 2); // block align
+    setUint16(16); // bits per sample
+
+    writeString(view, pos, 'data'); pos += 4;
+    setUint32(len - pos - 4);
+
+    for (let i = 0; i < buffer.numberOfChannels; i++) {
+        channels.push(buffer.getChannelData(i));
+    }
+
+    while (pos < len) {
+        for (let i = 0; i < numOfChan; i++) {
+            let sample = Math.max(-1, Math.min(1, channels[i][offset]));
+            sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+            view.setInt16(pos, sample, true);
+            pos += 2;
+        }
+        offset++;
+    }
+
+    return new Blob([view], { type: 'audio/wav' });
+  };
+
+  const applyAudioEffects = async (
+    audioBuffer: AudioBuffer,
+    reverb: string,
+    echo: string,
+    pitch: string
+): Promise<AudioBuffer> => {
+    const pitchRate = pitch === 'normal' ? 1.0 : (pitch === 'low' ? 0.8 : 1.25);
+    const newLength = Math.ceil(audioBuffer.length / pitchRate);
+
+    const offlineCtx = new OfflineAudioContext(
+        audioBuffer.numberOfChannels,
+        newLength,
+        audioBuffer.sampleRate
+    );
+
+    const source = offlineCtx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.playbackRate.value = pitchRate;
+
+    let lastNode: AudioNode = source;
+
+    if (reverb !== 'none') {
+        const convolver = offlineCtx.createConvolver();
+        const impulseLength = reverb === 'small' ? 2 : 4;
+        const impulseDecay = reverb === 'small' ? 2 : 4;
+        const impulseBuffer = offlineCtx.createBuffer(
+            audioBuffer.numberOfChannels, 
+            offlineCtx.sampleRate * impulseLength, 
+            offlineCtx.sampleRate
+        );
+        for (let c = 0; c < audioBuffer.numberOfChannels; c++) {
+            const channelData = impulseBuffer.getChannelData(c);
+            for (let i = 0; i < channelData.length; i++) {
+                channelData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / channelData.length, impulseDecay);
+            }
+        }
+        convolver.buffer = impulseBuffer;
+        lastNode.connect(convolver);
+        lastNode = convolver;
+    }
+
+    if (echo !== 'none') {
+        const delay = offlineCtx.createDelay(1.0);
+        const feedback = offlineCtx.createGain();
+        const wetLevel = offlineCtx.createGain();
+        const dryLevel = offlineCtx.createGain();
+
+        delay.delayTime.value = echo === 'subtle' ? 0.25 : 0.5;
+        feedback.gain.value = echo === 'subtle' ? 0.3 : 0.5;
+        wetLevel.gain.value = 0.4;
+        dryLevel.gain.value = 0.6;
+        
+        lastNode.connect(dryLevel);
+        dryLevel.connect(offlineCtx.destination);
+        
+        lastNode.connect(delay);
+        delay.connect(wetLevel);
+        wetLevel.connect(offlineCtx.destination);
+        
+        delay.connect(feedback);
+        feedback.connect(delay);
+        
+        lastNode = offlineCtx.destination; 
+    }
+    
+    if (lastNode !== offlineCtx.destination) {
+        lastNode.connect(offlineCtx.destination);
+    }
+    
+    source.start(0);
+
+    return await offlineCtx.startRendering();
+};
+
+  const normalizeAudioBuffer = (audioBuffer: AudioBuffer): AudioBuffer => {
+    const audioCtx = new AudioContext();
+    const normalizedBuffer = audioCtx.createBuffer(
+        audioBuffer.numberOfChannels,
+        audioBuffer.length,
+        audioBuffer.sampleRate
+    );
+
+    let maxAmplitude = 0;
+    for (let c = 0; c < audioBuffer.numberOfChannels; c++) {
+        const channelData = audioBuffer.getChannelData(c);
+        for (let s = 0; s < channelData.length; s++) {
+            if (Math.abs(channelData[s]) > maxAmplitude) {
+                maxAmplitude = Math.abs(channelData[s]);
+            }
+        }
+    }
+    
+    if (maxAmplitude > 0) {
+        const gain = 0.98 / maxAmplitude; // Normalize to -0.1 dBFS peak to avoid clipping
+        for (let c = 0; c < audioBuffer.numberOfChannels; c++) {
+            const inputData = audioBuffer.getChannelData(c);
+            const outputData = normalizedBuffer.getChannelData(c);
+            for (let s = 0; s < inputData.length; s++) {
+                outputData[s] = inputData[s] * gain;
+            }
+        }
+    } else {
+        // If silent, just copy it over.
+        for (let c = 0; c < audioBuffer.numberOfChannels; c++) {
+            normalizedBuffer.copyToChannel(audioBuffer.getChannelData(c), c);
+        }
+    }
+    
+    return normalizedBuffer;
+  };
+
   const generateAudio = async () => {
       const prompt = promptInput.value;
       if (!prompt) {
@@ -253,21 +551,41 @@ const App = () => {
           return;
       }
       
-      const voice = getSelectedAudioVoice();
-      const accent = getSelectedAudioAccent();
-      const tone = getSelectedAudioTone();
+      const duration = getAudioDurationSeconds();
+      const reverb = getSelectedAudioReverb();
+      const echo = getSelectedAudioEcho();
+      const pitch = getSelectedAudioPitch();
 
-      setLoading(true, "Generating audio...");
+      setLoading(true, "Generating base audio...");
       try {
-          // Simulate a short delay for the API call
-          await new Promise(resolve => setTimeout(resolve, 1500));
-
-          // In a real app, you would call your TTS API here, passing the prompt, voice, accent, and tone.
-          // For example: const audioBlob = await myTtsApi.generate({ text: prompt, voice: voice, accent: accent, tone: tone });
-          const audioBlob = createPlaceholderWavBlob();
-          const audioUrl = URL.createObjectURL(audioBlob);
+          // Simulate API call
+          await new Promise(resolve => setTimeout(resolve, 1500)); 
+          const audioBlob = createPlaceholderWavBlob(duration);
           
-          displayAudioResult(audioUrl, prompt, audioBlob);
+          // Decode for processing
+          const audioContext = new AudioContext();
+          const rawBuffer = await audioBlob.arrayBuffer();
+          let decodedBuffer = await audioContext.decodeAudioData(rawBuffer);
+
+          // Normalization Step
+          setLoading(true, "Normalizing audio volume...");
+          await new Promise(resolve => setTimeout(resolve, 500)); // Simulate processing time
+          decodedBuffer = normalizeAudioBuffer(decodedBuffer);
+          
+          const hasEffects = reverb !== 'none' || echo !== 'none' || pitch !== 'normal';
+
+          if (hasEffects) {
+              setLoading(true, "Applying audio effects...");
+              await new Promise(resolve => setTimeout(resolve, 500)); // Simulate processing time
+              decodedBuffer = await applyAudioEffects(decodedBuffer, reverb, echo, pitch);
+          }
+          
+          setLoading(true, "Encoding final audio file...");
+          await new Promise(resolve => setTimeout(resolve, 200)); // Simulate processing time
+          const finalAudioBlob = audioBufferToWav(decodedBuffer);
+          
+          const audioUrl = URL.createObjectURL(finalAudioBlob);
+          displayAudioResult(audioUrl, prompt, finalAudioBlob);
 
       } catch (error) {
           console.error(error);
@@ -292,6 +610,12 @@ const App = () => {
     const duration = getSelectedVideoDuration();
     const ffmpegEnabled = ffmpegToggle.checked;
     const ffmpegCommands = ffmpegCommandsInput.value;
+    const textOverlayEnabled = textOverlayToggle.checked;
+    const textOverlayText = textOverlayInput.value;
+    const selectedPositionRadio = document.querySelector('input[name="text-overlay-position"]:checked') as HTMLInputElement;
+    const textOverlayPosition = selectedPositionRadio.value;
+    const chromaKeyEnabled = videoChromaKeyToggle.checked;
+    const chromaKeyColor = videoChromaKeyColorPicker.value;
     
     let audioPromptModifier = '';
     switch (audioTrack) {
@@ -330,12 +654,22 @@ const App = () => {
     if (ffmpegEnabled && ffmpegCommands.trim()) {
         ffmpegModifier = `, apply these post-processing instructions: ${ffmpegCommands.trim()}`;
     }
+    
+    let textOverlayModifier = '';
+    if (textOverlayEnabled && textOverlayText.trim()) {
+        textOverlayModifier = `, with the text "${textOverlayText.trim()}" overlaid in the ${textOverlayPosition}`;
+    }
+
+    let chromaKeyModifier = '';
+    if (chromaKeyEnabled) {
+        chromaKeyModifier = `, with a solid ${chromaKeyColor} background for chroma keying`;
+    }
 
     const qualityPromptModifier = quality === 'high' ? ', cinematic, best quality' : '';
     const stylePromptModifier = `, ${style} style`;
     const aspectRatioModifier = `, ${aspectRatio} aspect ratio`;
     const resolutionModifier = resolution === '1080p' ? ', 1080p, full hd, 4k' : ', 720p, hd';
-    const finalPrompt = prompt + stylePromptModifier + qualityPromptModifier + audioPromptModifier + aspectRatioModifier + resolutionModifier + durationModifier + ffmpegModifier;
+    const finalPrompt = prompt + stylePromptModifier + qualityPromptModifier + audioPromptModifier + aspectRatioModifier + resolutionModifier + durationModifier + ffmpegModifier + textOverlayModifier + chromaKeyModifier;
 
     setLoading(true, "Starting video generation...");
     try {
@@ -359,7 +693,7 @@ const App = () => {
         while (!operation.done) {
             setLoading(true, videoLoadingMessages[messageIndex % videoLoadingMessages.length]);
             messageIndex++;
-            await new Promise(resolve => setTimeout(resolve, 30000)); // Increased polling time
+            await new Promise(resolve => setTimeout(resolve, 120000)); // 120-second polling
             operation = await ai.operations.getVideosOperation({ operation: operation });
         }
 
@@ -398,7 +732,7 @@ const App = () => {
       undoStack.push(currentState);
     }
 
-    setLoading(true);
+    setLoading(true, "Generating your icon...");
     const isTransparent = transparencyToggle.checked;
     let outputMimeType = getSelectedFormat();
     const aspectRatio = aspectRatioSelect.value as AspectRatio;
@@ -417,8 +751,6 @@ const App = () => {
 
     const qualityPromptModifier = quality === 'high' ? ', high detail, intricate, best quality, 4k' : '';
     
-    // The negative prompt is appended to the main prompt string to guide the model,
-    // as a separate 'negativePrompt' parameter is not supported by the API.
     let finalPrompt = [prompt, iconStyle, qualityPromptModifier].filter(Boolean).join(', ') + backgroundPrompt;
     if (negativePrompt) {
         finalPrompt += `. Do not include the following: ${negativePrompt}`;
@@ -496,14 +828,13 @@ const App = () => {
       updateButtonStates();
       loadingContainer?.classList.add('hidden');
 
-      // Cooldown for generate button to prevent rate-limiting.
       setTimeout(() => {
-          // Re-enable only if not loading again.
           const stillLoading = !loadingContainer?.classList.contains('hidden');
           if (!stillLoading) {
-              generateBtn.disabled = false;
+              const hasPrompt = promptInput.value.trim().length > 0;
+              generateBtn.disabled = !hasPrompt;
           }
-      }, 8000); // 8-second cooldown
+      }, 30000); 
     }
   };
 
@@ -591,12 +922,65 @@ const App = () => {
     resultContent.classList.remove('hidden');
   };
 
+  const downloadImage = (state: AppState, index: number) => {
+    const url = state.imageUrls[index];
+    const sanitizedPrompt = state.prompt.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').substring(0, 50) || 'ai-icon';
+    const style = state.iconStyle.split(' ')[0];
+    const aspectRatio = state.aspectRatio.replace(':', 'x');
+    const extension = state.format === 'image/png' ? 'png' : 'jpg';
+    const filename = `${sanitizedPrompt}-${style}-${aspectRatio}-${state.generationId}-${index + 1}.${extension}`;
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const downloadAllAsZip = async () => {
+    if (!currentState || currentState.imageUrls.length <= 1) return;
+    
+    setLoading(true, 'Zipping files...');
+    try {
+        const zip = new JSZip();
+        for (let i = 0; i < currentState.imageUrls.length; i++) {
+            const url = currentState.imageUrls[i];
+            const sanitizedPrompt = currentState.prompt.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').substring(0, 50) || 'ai-icon';
+            const style = currentState.iconStyle.split(' ')[0];
+            const aspectRatio = currentState.aspectRatio.replace(':', 'x');
+            const extension = currentState.format === 'image/png' ? 'png' : 'jpg';
+            const filename = `${sanitizedPrompt}-${style}-${aspectRatio}-${currentState.generationId}-${i + 1}.${extension}`;
+            
+            const response = await fetch(url);
+            const blob = await response.blob();
+            zip.file(filename, blob);
+        }
+        
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const zipFilename = `${(currentState.prompt.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').substring(0, 50) || 'ai-icons')}-${currentState.generationId}.zip`;
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(zipBlob);
+        link.download = zipFilename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+
+    } catch (e) {
+        console.error("Failed to create zip file:", e);
+        showError('Failed to create zip file.');
+    } finally {
+        setLoading(false);
+    }
+  };
+
   const displayState = (state: AppState) => {
     if (!mediaContainer || !resultContent) return;
     
     currentState = state;
 
-    // Update UI controls to match the state
     promptInput.value = state.prompt;
     negativePromptInput.value = state.negativePrompt;
     aspectRatioSelect.value = state.aspectRatio;
@@ -611,474 +995,192 @@ const App = () => {
 
     const styleRadio = document.querySelector(`input[name="icon-style"][value="${state.iconStyle}"]`) as HTMLInputElement;
     if (styleRadio) styleRadio.checked = true;
-
+    
     const qualityRadio = document.querySelector(`input[name="quality"][value="${state.quality}"]`) as HTMLInputElement;
     if (qualityRadio) qualityRadio.checked = true;
-    
-    const numberOfIconsRadio = document.querySelector(`input[name="number-of-icons"][value="${state.numberOfIcons}"]`) as HTMLInputElement;
-    if (numberOfIconsRadio) numberOfIconsRadio.checked = true;
-    
-    updateTransparencyControls();
 
-    // Update image grid
+    const numberRadio = document.querySelector(`input[name="number-of-icons"][value="${state.numberOfIcons}"]`) as HTMLInputElement;
+    if (numberRadio) numberRadio.checked = true;
+
     mediaContainer.innerHTML = '';
-    mediaContainer.setAttribute('data-layout', 'grid');
-    state.imageUrls.forEach((imageUrl, index) => {
+    mediaContainer.setAttribute('data-layout', state.imageUrls.length > 1 ? 'grid' : 'single');
+
+    state.imageUrls.forEach((url, index) => {
         const itemWrapper = document.createElement('div');
         itemWrapper.className = 'icon-grid-item';
 
         const img = document.createElement('img');
-        img.src = imageUrl;
-        img.alt = `${state.prompt} - variation ${index + 1}`;
-        const [w, h] = state.aspectRatio.split(':').map(Number);
-        img.style.aspectRatio = `${w} / ${h}`;
-
-        const newDownloadBtn = document.createElement('button');
-        newDownloadBtn.className = 'download-btn-grid';
-        newDownloadBtn.innerHTML = `
+        img.src = url;
+        img.alt = `Generated Icon: ${state.prompt}`;
+        
+        const downloadBtn = document.createElement('button');
+        downloadBtn.className = 'download-btn-grid';
+        downloadBtn.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
             <span>Download</span>
         `;
-        newDownloadBtn.addEventListener('click', () => downloadImage(imageUrl, index + 1));
+        downloadBtn.addEventListener('click', () => downloadImage(state, index));
 
         itemWrapper.appendChild(img);
-        itemWrapper.appendChild(newDownloadBtn);
+        itemWrapper.appendChild(downloadBtn);
         mediaContainer.appendChild(itemWrapper);
     });
 
     if (downloadAllBtn) {
         downloadAllBtn.classList.toggle('hidden', state.imageUrls.length <= 1);
     }
+
     resultContent.classList.remove('hidden');
-  };
-
-  const showError = (message: string) => {
-    if (!errorMessage) return;
-    errorMessage.textContent = message;
-    errorMessage.classList.remove('hidden');
-    resultContent?.classList.add('hidden');
-  };
-
-  const downloadImage = (imageUrl: string, index: number) => {
-    if (!currentState) return;
-
-    const link = document.createElement('a');
-    link.href = imageUrl;
-    
-    const extension = currentState.format.split('/')[1];
-    const sanitizedPrompt = currentState.prompt.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').substring(0, 50) || 'ai-icon';
-    const style = currentState.iconStyle.replace(/\s/g, '-');
-    const aspectRatio = currentState.aspectRatio.replace(':', 'x');
-    const timestamp = currentState.generationId;
-    const finalIndex = currentState.imageUrls.length > 1 ? `-${index}` : '';
-
-    const filenameParts = [sanitizedPrompt, style, aspectRatio, timestamp];
-    
-    link.download = `${filenameParts.join('-')}${finalIndex}.${extension}`;
-    
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const downloadAllAsZip = async () => {
-    if (!currentState || currentState.imageUrls.length <= 1) return;
-
-    setLoading(true, "Creating zip file...");
-    try {
-        const zip = new JSZip();
-
-        currentState.imageUrls.forEach((imageUrl, index) => {
-            const extension = currentState.format.split('/')[1];
-            const sanitizedPrompt = currentState.prompt.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').substring(0, 50) || 'ai-icon';
-            const style = currentState.iconStyle.replace(/\s/g, '-');
-            const aspectRatio = currentState.aspectRatio.replace(':', 'x');
-            const timestamp = currentState.generationId;
-            const finalIndex = `-${index + 1}`;
-            const filenameParts = [sanitizedPrompt, style, aspectRatio, timestamp];
-            const filename = `${filenameParts.join('-')}${finalIndex}.${extension}`;
-            
-            const base64Data = imageUrl.split(',')[1];
-            zip.file(filename, base64Data, { base64: true });
-        });
-
-        const zipBlob = await zip.generateAsync({ type: "blob" });
-        
-        const sanitizedPrompt = currentState.prompt.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').substring(0, 50) || 'ai-icon-pack';
-        const timestamp = currentState.generationId;
-        const zipFilename = `${sanitizedPrompt}-${timestamp}.zip`;
-
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(zipBlob);
-        link.download = zipFilename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(link.href);
-
-    } catch (error) {
-        console.error("Failed to create zip file", error);
-        showError("Could not create the zip file. Please try downloading icons individually.");
-    } finally {
-        setLoading(false);
-    }
+    errorMessage?.classList.add('hidden');
+    updateButtonStates();
   };
 
   const clearUI = () => {
     promptInput.value = '';
-    if (mediaContainer) mediaContainer.innerHTML = '';
-    resultContent?.classList.add('hidden');
-    errorMessage?.classList.add('hidden');
-    if (downloadAllBtn) downloadAllBtn.classList.add('hidden');
+    negativePromptInput.value = '';
     
-    if (currentMode === 'icon') {
-      negativePromptInput.value = '';
-      currentState = null;
-      undoStack = [];
-      redoStack = [];
-      
-      // Reset options to default
-      (document.getElementById('number-1') as HTMLInputElement).checked = true;
-      (document.getElementById('format-jpeg') as HTMLInputElement).checked = true;
-      (document.getElementById('style-flat') as HTMLInputElement).checked = true;
-      (document.getElementById('quality-standard') as HTMLInputElement).checked = true;
-      aspectRatioSelect.value = '1:1';
-      backgroundColorPicker.value = DEFAULT_BACKGROUND_COLOR;
-      transparencyToggle.checked = false;
-      updateTransparencyControls();
-      presetsSelect.value = '';
-    } else if (currentMode === 'video') {
-      (document.getElementById('video-quality-standard') as HTMLInputElement).checked = true;
-      (document.getElementById('video-style-cinematic') as HTMLInputElement).checked = true;
-      (document.getElementById('audio-track-none') as HTMLInputElement).checked = true;
-      (document.getElementById('video-aspect-16x9') as HTMLInputElement).checked = true;
-      (document.getElementById('video-resolution-720p') as HTMLInputElement).checked = true;
-      (document.getElementById('video-duration-medium') as HTMLInputElement).checked = true;
-      ffmpegToggle.checked = false;
-      ffmpegCommandsInput.value = '';
-      ffmpegCommandsInput.disabled = true;
-    } else if (currentMode === 'audio') {
-        (document.getElementById('voice-male') as HTMLInputElement).checked = true;
-        (document.getElementById('accent-american') as HTMLInputElement).checked = true;
-        (document.getElementById('tone-professional') as HTMLInputElement).checked = true;
-    }
+    if(mediaContainer) mediaContainer.innerHTML = '';
+    if(resultContent) resultContent.classList.add('hidden');
+    if(errorMessage) errorMessage.classList.add('hidden');
     
-    updateButtonStates();
+    (document.getElementById('style-flat') as HTMLInputElement).checked = true;
+    (document.getElementById('quality-standard') as HTMLInputElement).checked = true;
+    (document.getElementById('format-jpeg') as HTMLInputElement).checked = true;
+    (document.getElementById('number-1') as HTMLInputElement).checked = true;
+    aspectRatioSelect.value = '1:1';
+    backgroundColorPicker.value = DEFAULT_BACKGROUND_COLOR;
+    transparencyToggle.checked = false;
+    
+    (document.getElementById('video-style-cinematic') as HTMLInputElement).checked = true;
+    (document.getElementById('video-quality-standard') as HTMLInputElement).checked = true;
+    (document.getElementById('video-resolution-720p') as HTMLInputElement).checked = true;
+    (document.getElementById('video-duration-medium') as HTMLInputElement).checked = true;
+    (document.getElementById('audio-track-none') as HTMLInputElement).checked = true;
+    (document.getElementById('video-aspect-16x9') as HTMLInputElement).checked = true;
+    ffmpegToggle.checked = false;
+    ffmpegCommandsInput.value = '';
+    ffmpegCommandsInput.disabled = true;
+    textOverlayToggle.checked = false;
+    textOverlayInput.value = '';
+    textOverlayInput.disabled = true;
+    textOverlayPositionRadios.forEach(radio => (radio as HTMLInputElement).disabled = true);
+    (document.querySelector('input[name="text-overlay-position"]') as HTMLInputElement).checked = true;
+    videoChromaKeyToggle.checked = false;
+    videoChromaKeyColorPicker.disabled = true;
+
+    (document.getElementById('voice-male') as HTMLInputElement).checked = true;
+    (document.getElementById('accent-american') as HTMLInputElement).checked = true;
+    (document.getElementById('tone-professional') as HTMLInputElement).checked = true;
+    audioDurationInput.value = '10';
+    (document.getElementById('reverb-none') as HTMLInputElement).checked = true;
+    (document.getElementById('echo-none') as HTMLInputElement).checked = true;
+    (document.getElementById('pitch-normal') as HTMLInputElement).checked = true;
+
+    currentState = null;
+    undoStack = [];
+    redoStack = [];
     localStorage.removeItem(SESSION_STORAGE_KEY);
-    promptInput.focus();
+    updateButtonStates();
   };
 
-  const updateButtonStates = () => {
-    const isVideoMode = currentMode === 'video';
-    const isAudioMode = currentMode === 'audio';
-    undoBtn.disabled = isVideoMode || isAudioMode || undoStack.length === 0;
-    redoBtn.disabled = isVideoMode || isAudioMode || redoStack.length === 0;
-    deletePresetBtn.disabled = isVideoMode || isAudioMode || !presetsSelect.value;
-    savePresetBtn.disabled = isVideoMode || isAudioMode;
-    presetsSelect.disabled = isVideoMode || isAudioMode;
-    presetNameInput.disabled = isVideoMode || isAudioMode;
-  }
-
   const undo = () => {
-    if (currentMode !== 'icon' || undoStack.length === 0) return;
-
-    if (currentState) {
-      redoStack.push(currentState);
+    if (undoStack.length > 0) {
+      const prevState = undoStack.pop();
+      if(currentState) {
+        redoStack.push(currentState);
+      }
+      displayState(prevState!);
     }
-    const previousState = undoStack.pop()!;
-    displayState(previousState);
-    updateButtonStates();
   };
 
   const redo = () => {
-    if (currentMode !== 'icon' || redoStack.length === 0) return;
-    
-    if (currentState) {
-      undoStack.push(currentState);
-    }
-    const nextState = redoStack.pop()!;
-    displayState(nextState);
-    updateButtonStates();
-  };
-
-  const suggestPrompt = () => {
-    const suggestions = PROMPT_SUGGESTIONS[currentMode] || PROMPT_SUGGESTIONS.icon;
-    const randomIndex = Math.floor(Math.random() * suggestions.length);
-    promptInput.value = suggestions[randomIndex];
-    saveSessionState();
-  };
-
-  const updateTransparencyControls = () => {
-    const isTransparent = transparencyToggle.checked;
-    const formatJpegRadio = document.getElementById('format-jpeg') as HTMLInputElement;
-    const formatPngRadio = document.getElementById('format-png') as HTMLInputElement;
-
-    backgroundColorPicker.disabled = isTransparent;
-    formatJpegRadio.disabled = isTransparent;
-    
-    if (isTransparent) {
-      formatPngRadio.checked = true;
-    }
-  };
-
-  const switchMode = (newMode: AppMode) => {
-    currentMode = newMode;
-    
-    modeIconBtn.classList.toggle('active', newMode === 'icon');
-    modeIconBtn.setAttribute('aria-pressed', (newMode === 'icon').toString());
-    modeVideoBtn.classList.toggle('active', newMode === 'video');
-    modeVideoBtn.setAttribute('aria-pressed', (newMode === 'video').toString());
-    modeAudioBtn.classList.toggle('active', newMode === 'audio');
-    modeAudioBtn.setAttribute('aria-pressed', (newMode === 'audio').toString());
-
-    iconOptionsContainer?.classList.toggle('hidden', newMode !== 'icon');
-    videoOptionsContainer?.classList.toggle('hidden', newMode !== 'video');
-    audioOptionsContainer?.classList.toggle('hidden', newMode !== 'audio');
-    
-    const generateBtnText = generateBtn.querySelector('span');
-    if(generateBtnText) {
-        if (newMode === 'icon') generateBtnText.textContent = 'Generate Icon';
-        else if (newMode === 'video') generateBtnText.textContent = 'Generate Video';
-        else if (newMode === 'audio') generateBtnText.textContent = 'Generate Audio';
-    }
-    
-    // Clear results when switching modes
-    if (mediaContainer) mediaContainer.innerHTML = '';
-    resultContent?.classList.add('hidden');
-    errorMessage?.classList.add('hidden');
-
-    updateButtonStates();
-    saveSessionState();
-  };
-
-  // --- Prompt History Functions ---
-
-  const getPromptHistory = (): string[] => {
-    const historyJSON = localStorage.getItem(PROMPT_HISTORY_STORAGE_KEY);
-    return historyJSON ? JSON.parse(historyJSON) : [];
-  };
-
-  const savePromptHistory = (history: string[]) => {
-    localStorage.setItem(PROMPT_HISTORY_STORAGE_KEY, JSON.stringify(history));
-  };
-  
-  const populatePromptHistoryDatalist = () => {
-      if (!promptHistoryDatalist) return;
-      const history = getPromptHistory();
-      promptHistoryDatalist.innerHTML = '';
-      history.forEach(prompt => {
-          const option = document.createElement('option');
-          option.value = prompt;
-          promptHistoryDatalist.appendChild(option);
-      });
-  };
-
-  const addToPromptHistory = (prompt: string) => {
-    if (!prompt) return;
-    let history = getPromptHistory();
-    history = history.filter(p => p.trim().toLowerCase() !== prompt.trim().toLowerCase());
-    history.unshift(prompt);
-    if (history.length > MAX_PROMPT_HISTORY_SIZE) {
-        history = history.slice(0, MAX_PROMPT_HISTORY_SIZE);
-    }
-    savePromptHistory(history);
-  };
-
-  // --- Keyboard Shortcuts ---
-  const handleKeyDown = (event: KeyboardEvent) => {
-    const activeElement = document.activeElement;
-    if (activeElement?.tagName === 'INPUT' && activeElement?.id !== 'prompt-input' && activeElement?.id !== 'negative-prompt-input') {
-      return;
-    }
-    
-    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-    const isCtrlOrCmd = event.ctrlKey || event.metaKey;
-
-    const isMacRedo = isMac && event.metaKey && event.shiftKey && event.key.toLowerCase() === 'z';
-    const isWindowsRedo = !isMac && event.ctrlKey && event.key.toLowerCase() === 'y';
-    
-    if (isCtrlOrCmd && event.key === 'Enter') {
-        event.preventDefault();
-        if (!generateBtn.disabled) generateBtn.click();
-    } else if (isCtrlOrCmd && !event.shiftKey && event.key.toLowerCase() === 'z') {
-        event.preventDefault();
-        if (!undoBtn.disabled) undoBtn.click();
-    } else if (isMacRedo || isWindowsRedo) {
-        event.preventDefault();
-        if (!redoBtn.disabled) redoBtn.click();
-    } else if (event.key === 'Escape') {
-      if (activeElement?.tagName !== 'SELECT') {
-        event.preventDefault();
-        if (!clearBtn.disabled) clearBtn.click();
+    if (redoStack.length > 0) {
+      const nextState = redoStack.pop();
+      if (currentState) {
+        undoStack.push(currentState);
       }
+      displayState(nextState!);
     }
   };
-  
-  // --- Session Functions ---
-
-  const saveSessionState = () => {
-    const sessionState: SessionState = {
-      prompt: promptInput.value,
-      currentMode: currentMode,
-    };
-    if (currentMode === 'icon') {
-        sessionState.negativePrompt = negativePromptInput.value;
-        sessionState.format = getSelectedFormat();
-        sessionState.aspectRatio = aspectRatioSelect.value as AspectRatio;
-        sessionState.iconStyle = getSelectedStyle();
-        sessionState.quality = getSelectedQuality();
-        sessionState.backgroundColor = backgroundColorPicker.value;
-        sessionState.transparentBackground = transparencyToggle.checked;
-        sessionState.numberOfIcons = getSelectedNumberOfIcons();
-    } else if (currentMode === 'video') {
-        sessionState.videoQuality = getSelectedVideoQuality();
-        sessionState.videoStyle = getSelectedVideoStyle();
-        sessionState.videoAudioTrack = getSelectedAudioTrack();
-        sessionState.videoAspectRatio = getSelectedVideoAspectRatio();
-        sessionState.videoResolution = getSelectedVideoResolution();
-        sessionState.videoDuration = getSelectedVideoDuration();
-        sessionState.videoFfmpegEnabled = ffmpegToggle.checked;
-        sessionState.videoFfmpegCommands = ffmpegCommandsInput.value;
-    } else if (currentMode === 'audio') {
-        sessionState.audioVoice = getSelectedAudioVoice();
-        sessionState.audioAccent = getSelectedAudioAccent();
-        sessionState.audioTone = getSelectedAudioTone();
-    }
-    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionState));
-  };
-
-  const loadSessionState = () => {
-    const savedStateJSON = localStorage.getItem(SESSION_STORAGE_KEY);
-    if (savedStateJSON) {
-      const savedState: SessionState = JSON.parse(savedStateJSON);
-      promptInput.value = savedState.prompt;
-      
-      switchMode(savedState.currentMode || 'icon');
-
-      if (savedState.currentMode === 'icon') {
-        negativePromptInput.value = savedState.negativePrompt || '';
-        aspectRatioSelect.value = savedState.aspectRatio || '1:1';
-        backgroundColorPicker.value = savedState.backgroundColor || DEFAULT_BACKGROUND_COLOR;
-        transparencyToggle.checked = savedState.transparentBackground || false;
-
-        if (savedState.format === 'image/jpeg') {
-          (document.getElementById('format-jpeg') as HTMLInputElement).checked = true;
-        } else {
-          (document.getElementById('format-png') as HTMLInputElement).checked = true;
-        }
-
-        const styleRadio = document.querySelector(`input[name="icon-style"][value="${savedState.iconStyle}"]`) as HTMLInputElement;
-        if (styleRadio) styleRadio.checked = true;
-        else (document.getElementById('style-flat') as HTMLInputElement).checked = true;
-
-        const qualityRadio = document.querySelector(`input[name="quality"][value="${savedState.quality}"]`) as HTMLInputElement;
-        if (qualityRadio) qualityRadio.checked = true;
-        else (document.getElementById('quality-standard') as HTMLInputElement).checked = true;
-
-        const numberOfIconsRadio = document.querySelector(`input[name="number-of-icons"][value="${savedState.numberOfIcons}"]`) as HTMLInputElement;
-        if (numberOfIconsRadio) numberOfIconsRadio.checked = true;
-        else (document.getElementById('number-1') as HTMLInputElement).checked = true;
-      } else if (savedState.currentMode === 'video') {
-        const qualityRadio = document.querySelector(`input[name="video-quality"][value="${savedState.videoQuality}"]`) as HTMLInputElement;
-        if (qualityRadio) qualityRadio.checked = true;
-        else (document.getElementById('video-quality-standard') as HTMLInputElement).checked = true;
-
-        const styleRadio = document.querySelector(`input[name="video-style"][value="${savedState.videoStyle}"]`) as HTMLInputElement;
-        if (styleRadio) styleRadio.checked = true;
-        else (document.getElementById('video-style-cinematic') as HTMLInputElement).checked = true;
-
-        let audioTrackValue = savedState.videoAudioTrack;
-        // Map old values for backward compatibility
-        if (audioTrackValue === 'music') audioTrackValue = 'cinematic-music';
-        const audioTrackRadio = document.querySelector(`input[name="video-audio-track"][value="${audioTrackValue}"]`) as HTMLInputElement;
-        if (audioTrackRadio) audioTrackRadio.checked = true;
-        else (document.getElementById('audio-track-none') as HTMLInputElement).checked = true;
-
-        const aspectRatioRadio = document.querySelector(`input[name="video-aspect-ratio"][value="${savedState.videoAspectRatio}"]`) as HTMLInputElement;
-        if (aspectRatioRadio) aspectRatioRadio.checked = true;
-        else (document.getElementById('video-aspect-16x9') as HTMLInputElement).checked = true;
-        
-        const resolutionRadio = document.querySelector(`input[name="video-resolution"][value="${savedState.videoResolution}"]`) as HTMLInputElement;
-        if (resolutionRadio) resolutionRadio.checked = true;
-        else (document.getElementById('video-resolution-720p') as HTMLInputElement).checked = true;
-
-        const durationRadio = document.querySelector(`input[name="video-duration"][value="${savedState.videoDuration}"]`) as HTMLInputElement;
-        if (durationRadio) durationRadio.checked = true;
-        else (document.getElementById('video-duration-medium') as HTMLInputElement).checked = true;
-        
-        ffmpegToggle.checked = savedState.videoFfmpegEnabled || false;
-        ffmpegCommandsInput.value = savedState.videoFfmpegCommands || '';
-        ffmpegCommandsInput.disabled = !ffmpegToggle.checked;
-
-
-      } else if (savedState.currentMode === 'audio') {
-        const voiceRadio = document.querySelector(`input[name="audio-voice"][value="${savedState.audioVoice}"]`) as HTMLInputElement;
-        if (voiceRadio) voiceRadio.checked = true;
-        else (document.getElementById('voice-male') as HTMLInputElement).checked = true;
-
-        const accentRadio = document.querySelector(`input[name="audio-accent"][value="${savedState.audioAccent}"]`) as HTMLInputElement;
-        if (accentRadio) accentRadio.checked = true;
-        else (document.getElementById('accent-american') as HTMLInputElement).checked = true;
-        
-        const toneRadio = document.querySelector(`input[name="audio-tone"][value="${savedState.audioTone}"]`) as HTMLInputElement;
-        if (toneRadio) toneRadio.checked = true;
-        else (document.getElementById('tone-professional') as HTMLInputElement).checked = true;
-      }
-    } else {
-        switchMode('icon');
-    }
-    updateTransparencyControls();
-  };
-
-
-  // --- Preset Functions ---
 
   const getPresets = (): Preset[] => {
-    const presetsJSON = localStorage.getItem(PRESETS_STORAGE_KEY);
-    return presetsJSON ? JSON.parse(presetsJSON) : [];
+    try {
+        const storedPresets = localStorage.getItem(PRESETS_STORAGE_KEY);
+        return storedPresets ? JSON.parse(storedPresets) : [];
+    } catch (e) {
+        console.error("Failed to parse presets:", e);
+        return [];
+    }
   };
 
   const savePresets = (presets: Preset[]) => {
-    localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(presets));
-  };
-  
-  const populatePresetsDropdown = () => {
-    const presets = getPresets();
-    const currentSelection = presetsSelect.value;
-    presetsSelect.innerHTML = '<option value="">Load a preset...</option>';
-    presets.forEach(preset => {
-      const option = document.createElement('option');
-      option.value = preset.name;
-      option.textContent = preset.name;
-      presetsSelect.appendChild(option);
-    });
-    presetsSelect.value = currentSelection;
+      try {
+          localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(presets));
+      } catch (e) {
+          console.error("Failed to save presets:", e);
+      }
   };
 
-  const saveCurrentPreset = () => {
-    if (currentMode !== 'icon') return;
+  const populatePresetsDropdown = () => {
+    const presets = getPresets();
+    presetsSelect.innerHTML = '<option value="">Load a preset...</option>';
+    presets.forEach(preset => {
+        const option = document.createElement('option');
+        option.value = preset.name;
+        option.textContent = preset.name;
+        presetsSelect.appendChild(option);
+    });
+    deletePresetBtn.disabled = true;
+  };
+  
+  const savePreset = () => {
     const name = presetNameInput.value.trim();
     if (!name) {
-      alert("Please enter a name for the preset.");
+      showError("Please enter a name for the preset.");
       return;
     }
     
     const newPreset: Preset = {
       name,
+      mode: currentMode,
       prompt: promptInput.value,
-      negativePrompt: negativePromptInput.value,
-      format: getSelectedFormat(),
-      aspectRatio: aspectRatioSelect.value as AspectRatio,
-      iconStyle: getSelectedStyle(),
-      quality: getSelectedQuality(),
-      backgroundColor: backgroundColorPicker.value,
-      transparentBackground: transparencyToggle.checked,
-      numberOfIcons: getSelectedNumberOfIcons(),
     };
+
+    if (currentMode === 'icon') {
+        newPreset.negativePrompt = negativePromptInput.value;
+        newPreset.format = getSelectedFormat();
+        newPreset.aspectRatio = aspectRatioSelect.value as AspectRatio;
+        newPreset.iconStyle = getSelectedStyle();
+        newPreset.quality = getSelectedQuality();
+        newPreset.backgroundColor = backgroundColorPicker.value;
+        newPreset.transparentBackground = transparencyToggle.checked;
+        newPreset.numberOfIcons = getSelectedNumberOfIcons();
+    } else if (currentMode === 'video') {
+        newPreset.videoQuality = getSelectedVideoQuality();
+        newPreset.videoStyle = getSelectedVideoStyle();
+        newPreset.videoAudioTrack = getSelectedAudioTrack();
+        newPreset.videoAspectRatio = getSelectedVideoAspectRatio();
+        newPreset.videoResolution = getSelectedVideoResolution();
+        newPreset.videoDuration = getSelectedVideoDuration();
+        newPreset.videoFfmpegEnabled = ffmpegToggle.checked;
+        newPreset.videoFfmpegCommands = ffmpegCommandsInput.value;
+        newPreset.videoTextOverlayEnabled = textOverlayToggle.checked;
+        newPreset.videoTextOverlayText = textOverlayInput.value;
+        newPreset.videoTextOverlayPosition = (document.querySelector('input[name="text-overlay-position"]:checked') as HTMLInputElement)?.value;
+        newPreset.videoChromaKeyEnabled = videoChromaKeyToggle.checked;
+        newPreset.videoChromaKeyColor = videoChromaKeyColorPicker.value;
+    } else if (currentMode === 'audio') {
+        newPreset.audioVoice = getSelectedAudioVoice();
+        newPreset.audioAccent = getSelectedAudioAccent();
+        newPreset.audioTone = getSelectedAudioTone();
+        newPreset.audioDurationSeconds = getAudioDurationSeconds();
+        newPreset.audioReverb = getSelectedAudioReverb();
+        newPreset.audioEcho = getSelectedAudioEcho();
+        newPreset.audioPitch = getSelectedAudioPitch();
+    }
 
     let presets = getPresets();
     const existingIndex = presets.findIndex(p => p.name === name);
-    
     if (existingIndex > -1) {
       presets[existingIndex] = newPreset;
     } else {
@@ -1089,106 +1191,311 @@ const App = () => {
     populatePresetsDropdown();
     presetsSelect.value = name;
     presetNameInput.value = '';
-    updateButtonStates();
+    deletePresetBtn.disabled = false;
   };
 
-  const loadSelectedPreset = () => {
-    if (currentMode !== 'icon') return;
-    const presetName = presetsSelect.value;
-    if (!presetName) {
-        updateButtonStates();
-        return;
-    };
-
+  const loadPreset = (name: string) => {
     const presets = getPresets();
-    const preset = presets.find(p => p.name === presetName);
-
+    const preset = presets.find(p => p.name === name);
     if (preset) {
-      promptInput.value = preset.prompt;
-      negativePromptInput.value = preset.negativePrompt || '';
-      aspectRatioSelect.value = preset.aspectRatio;
-      backgroundColorPicker.value = preset.backgroundColor || DEFAULT_BACKGROUND_COLOR;
-      transparencyToggle.checked = preset.transparentBackground || false;
+      switchMode(preset.mode, true);
 
-      if (preset.format === 'image/jpeg') {
-        (document.getElementById('format-jpeg') as HTMLInputElement).checked = true;
-      } else {
-        (document.getElementById('format-png') as HTMLInputElement).checked = true;
+      promptInput.value = preset.prompt;
+
+      if (preset.mode === 'icon') {
+        negativePromptInput.value = preset.negativePrompt ?? '';
+        if(preset.format) (document.querySelector(`input[name="format"][value="${preset.format}"]`) as HTMLInputElement).checked = true;
+        if(preset.aspectRatio) aspectRatioSelect.value = preset.aspectRatio;
+        if(preset.iconStyle) (document.querySelector(`input[name="icon-style"][value="${preset.iconStyle}"]`) as HTMLInputElement).checked = true;
+        if(preset.quality) (document.querySelector(`input[name="quality"][value="${preset.quality}"]`) as HTMLInputElement).checked = true;
+        if(preset.backgroundColor) backgroundColorPicker.value = preset.backgroundColor;
+        if(typeof preset.transparentBackground === 'boolean') transparencyToggle.checked = preset.transparentBackground;
+        if(preset.numberOfIcons) (document.querySelector(`input[name="number-of-icons"][value="${preset.numberOfIcons}"]`) as HTMLInputElement).checked = true;
+      } else if (preset.mode === 'video') {
+        if (preset.videoQuality) (document.querySelector(`input[name="video-quality"][value="${preset.videoQuality}"]`) as HTMLInputElement).checked = true;
+        if (preset.videoStyle) (document.querySelector(`input[name="video-style"][value="${preset.videoStyle}"]`) as HTMLInputElement).checked = true;
+        if (preset.videoAudioTrack) (document.querySelector(`input[name="video-audio-track"][value="${preset.videoAudioTrack}"]`) as HTMLInputElement).checked = true;
+        if (preset.videoAspectRatio) (document.querySelector(`input[name="video-aspect-ratio"][value="${preset.videoAspectRatio}"]`) as HTMLInputElement).checked = true;
+        if (preset.videoResolution) (document.querySelector(`input[name="video-resolution"][value="${preset.videoResolution}"]`) as HTMLInputElement).checked = true;
+        if (preset.videoDuration) (document.querySelector(`input[name="video-duration"][value="${preset.videoDuration}"]`) as HTMLInputElement).checked = true;
+        if (typeof preset.videoFfmpegEnabled === 'boolean') ffmpegToggle.checked = preset.videoFfmpegEnabled;
+        ffmpegCommandsInput.value = preset.videoFfmpegCommands ?? '';
+        ffmpegCommandsInput.disabled = !ffmpegToggle.checked;
+        if (typeof preset.videoTextOverlayEnabled === 'boolean') textOverlayToggle.checked = preset.videoTextOverlayEnabled;
+        textOverlayInput.value = preset.videoTextOverlayText ?? '';
+        textOverlayInput.disabled = !textOverlayToggle.checked;
+        textOverlayPositionRadios.forEach(radio => (radio as HTMLInputElement).disabled = !textOverlayToggle.checked);
+        if(preset.videoTextOverlayPosition) (document.querySelector(`input[name="text-overlay-position"][value="${preset.videoTextOverlayPosition}"]`) as HTMLInputElement).checked = true;
+        if (typeof preset.videoChromaKeyEnabled === 'boolean') videoChromaKeyToggle.checked = preset.videoChromaKeyEnabled;
+        videoChromaKeyColorPicker.value = preset.videoChromaKeyColor ?? '#00ff00';
+        videoChromaKeyColorPicker.disabled = !videoChromaKeyToggle.checked;
+      } else if (preset.mode === 'audio') {
+        if (preset.audioVoice) (document.querySelector(`input[name="audio-voice"][value="${preset.audioVoice}"]`) as HTMLInputElement).checked = true;
+        if (preset.audioAccent) (document.querySelector(`input[name="audio-accent"][value="${preset.audioAccent}"]`) as HTMLInputElement).checked = true;
+        if (preset.audioTone) (document.querySelector(`input[name="audio-tone"][value="${preset.audioTone}"]`) as HTMLInputElement).checked = true;
+        if (preset.audioDurationSeconds) audioDurationInput.value = String(preset.audioDurationSeconds);
+        if (preset.audioReverb) (document.querySelector(`input[name="audio-reverb"][value="${preset.audioReverb}"]`) as HTMLInputElement).checked = true;
+        if (preset.audioEcho) (document.querySelector(`input[name="audio-echo"][value="${preset.audioEcho}"]`) as HTMLInputElement).checked = true;
+        if (preset.audioPitch) (document.querySelector(`input[name="audio-pitch"][value="${preset.audioPitch}"]`) as HTMLInputElement).checked = true;
       }
       
-      const styleRadio = document.querySelector(`input[name="icon-style"][value="${preset.iconStyle}"]`) as HTMLInputElement;
-      if (styleRadio) styleRadio.checked = true;
-
-      const qualityRadio = document.querySelector(`input[name="quality"][value="${preset.quality}"]`) as HTMLInputElement;
-      if (qualityRadio) qualityRadio.checked = true;
-
-      const numberOfIconsRadio = document.querySelector(`input[name="number-of-icons"][value="${preset.numberOfIcons}"]`) as HTMLInputElement;
-      if (numberOfIconsRadio) numberOfIconsRadio.checked = true;
+      updateButtonStates();
+      saveSessionState();
     }
-    updateButtonStates();
-    updateTransparencyControls();
   };
 
-  const deleteSelectedPreset = () => {
-    if (currentMode !== 'icon') return;
-    const presetName = presetsSelect.value;
-    if (!presetName) return;
-
+  const deletePreset = () => {
+    const name = presetsSelect.value;
+    if (!name) return;
+    
     let presets = getPresets();
-    presets = presets.filter(p => p.name !== presetName);
+    presets = presets.filter(p => p.name !== name);
     savePresets(presets);
     populatePresetsDropdown();
-    updateButtonStates();
+  };
+  
+  const saveSessionState = () => {
+    const state: SessionState = {
+        prompt: promptInput.value,
+        negativePrompt: negativePromptInput.value,
+        format: getSelectedFormat(),
+        aspectRatio: aspectRatioSelect.value as AspectRatio,
+        iconStyle: getSelectedStyle(),
+        quality: getSelectedQuality(),
+        backgroundColor: backgroundColorPicker.value,
+        transparentBackground: transparencyToggle.checked,
+        numberOfIcons: getSelectedNumberOfIcons(),
+        currentMode: currentMode,
+        videoQuality: getSelectedVideoQuality(),
+        videoStyle: getSelectedVideoStyle(),
+        videoAudioTrack: getSelectedAudioTrack(),
+        videoAspectRatio: getSelectedVideoAspectRatio(),
+        videoResolution: getSelectedVideoResolution(),
+        videoDuration: getSelectedVideoDuration(),
+        videoFfmpegEnabled: ffmpegToggle.checked,
+        videoFfmpegCommands: ffmpegCommandsInput.value,
+        videoTextOverlayEnabled: textOverlayToggle.checked,
+        videoTextOverlayText: textOverlayInput.value,
+        videoTextOverlayPosition: (document.querySelector('input[name="text-overlay-position"]:checked') as HTMLInputElement)?.value,
+        videoChromaKeyEnabled: videoChromaKeyToggle.checked,
+        videoChromaKeyColor: videoChromaKeyColorPicker.value,
+        audioVoice: getSelectedAudioVoice(),
+        audioAccent: getSelectedAudioAccent(),
+        audioTone: getSelectedAudioTone(),
+        audioDurationSeconds: getAudioDurationSeconds(),
+        audioReverb: getSelectedAudioReverb(),
+        audioEcho: getSelectedAudioEcho(),
+        audioPitch: getSelectedAudioPitch(),
+    };
+    try {
+        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+        console.error("Failed to save session state:", e);
+    }
   };
 
-  const initialize = () => {
-    populatePresetsDropdown();
-    populatePromptHistoryDatalist();
+  const loadSessionState = () => {
+    try {
+        const storedState = localStorage.getItem(SESSION_STORAGE_KEY);
+        if (storedState) {
+            const state: SessionState = JSON.parse(storedState);
+            promptInput.value = state.prompt;
+            negativePromptInput.value = state.negativePrompt ?? '';
+            
+            if (state.format) {
+                (document.querySelector(`input[name="format"][value="${state.format}"]`) as HTMLInputElement).checked = true;
+            }
+            if (state.aspectRatio) aspectRatioSelect.value = state.aspectRatio;
+            if (state.iconStyle) {
+                (document.querySelector(`input[name="icon-style"][value="${state.iconStyle}"]`) as HTMLInputElement).checked = true;
+            }
+            if (state.quality) {
+                (document.querySelector(`input[name="quality"][value="${state.quality}"]`) as HTMLInputElement).checked = true;
+            }
+            if (state.backgroundColor) backgroundColorPicker.value = state.backgroundColor;
+            if (typeof state.transparentBackground === 'boolean') transparencyToggle.checked = state.transparentBackground;
+            if (state.numberOfIcons) {
+              const radio = document.querySelector(`input[name="number-of-icons"][value="${state.numberOfIcons}"]`) as HTMLInputElement;
+              if (radio) radio.checked = true;
+            }
+            
+            if (state.videoQuality) (document.querySelector(`input[name="video-quality"][value="${state.videoQuality}"]`) as HTMLInputElement).checked = true;
+            if (state.videoStyle) (document.querySelector(`input[name="video-style"][value="${state.videoStyle}"]`) as HTMLInputElement).checked = true;
+            if (state.videoAudioTrack) (document.querySelector(`input[name="video-audio-track"][value="${state.videoAudioTrack}"]`) as HTMLInputElement).checked = true;
+            if (state.videoAspectRatio) (document.querySelector(`input[name="video-aspect-ratio"][value="${state.videoAspectRatio}"]`) as HTMLInputElement).checked = true;
+            if (state.videoResolution) (document.querySelector(`input[name="video-resolution"][value="${state.videoResolution}"]`) as HTMLInputElement).checked = true;
+            if (state.videoDuration) (document.querySelector(`input[name="video-duration"][value="${state.videoDuration}"]`) as HTMLInputElement).checked = true;
+            if (typeof state.videoFfmpegEnabled === 'boolean') ffmpegToggle.checked = state.videoFfmpegEnabled;
+            ffmpegCommandsInput.value = state.videoFfmpegCommands ?? '';
+            ffmpegCommandsInput.disabled = !ffmpegToggle.checked;
+            if (typeof state.videoTextOverlayEnabled === 'boolean') textOverlayToggle.checked = state.videoTextOverlayEnabled;
+            textOverlayInput.value = state.videoTextOverlayText ?? '';
+            textOverlayInput.disabled = !textOverlayToggle.checked;
+            textOverlayPositionRadios.forEach(radio => (radio as HTMLInputElement).disabled = !textOverlayToggle.checked);
+            if(state.videoTextOverlayPosition) (document.querySelector(`input[name="text-overlay-position"][value="${state.videoTextOverlayPosition}"]`) as HTMLInputElement).checked = true;
+            if (typeof state.videoChromaKeyEnabled === 'boolean') videoChromaKeyToggle.checked = state.videoChromaKeyEnabled;
+            videoChromaKeyColorPicker.value = state.videoChromaKeyColor ?? '#00ff00';
+            videoChromaKeyColorPicker.disabled = !videoChromaKeyToggle.checked;
 
+            if (state.audioVoice) (document.querySelector(`input[name="audio-voice"][value="${state.audioVoice}"]`) as HTMLInputElement).checked = true;
+            if (state.audioAccent) (document.querySelector(`input[name="audio-accent"][value="${state.audioAccent}"]`) as HTMLInputElement).checked = true;
+            if (state.audioTone) (document.querySelector(`input[name="audio-tone"][value="${state.audioTone}"]`) as HTMLInputElement).checked = true;
+            if (state.audioDurationSeconds) {
+                audioDurationInput.value = String(state.audioDurationSeconds);
+            } else if (state.audioDuration) { // Backward compatibility
+                audioDurationInput.value = state.audioDuration === 'short' ? '5' : (state.audioDuration === 'long' ? '15' : '10');
+            }
+            if (state.audioReverb) (document.querySelector(`input[name="audio-reverb"][value="${state.audioReverb}"]`) as HTMLInputElement).checked = true;
+            if (state.audioEcho) (document.querySelector(`input[name="audio-echo"][value="${state.audioEcho}"]`) as HTMLInputElement).checked = true;
+            if (state.audioPitch) (document.querySelector(`input[name="audio-pitch"][value="${state.audioPitch}"]`) as HTMLInputElement).checked = true;
+
+
+            switchMode(state.currentMode || 'icon', true);
+        }
+    } catch (e) {
+        console.error("Failed to load session state:", e);
+    }
+  };
+
+  const switchMode = (newMode: AppMode, isInitialLoad = false) => {
+    currentMode = newMode;
+    
+    modeIconBtn.classList.toggle('active', newMode === 'icon');
+    modeVideoBtn.classList.toggle('active', newMode === 'video');
+    modeAudioBtn.classList.toggle('active', newMode === 'audio');
+
+    modeIconBtn.setAttribute('aria-pressed', String(newMode === 'icon'));
+    modeVideoBtn.setAttribute('aria-pressed', String(newMode === 'video'));
+    modeAudioBtn.setAttribute('aria-pressed', String(newMode === 'audio'));
+
+    iconOptionsContainer?.classList.toggle('hidden', newMode !== 'icon');
+    videoOptionsContainer?.classList.toggle('hidden', newMode !== 'video');
+    audioOptionsContainer?.classList.toggle('hidden', newMode !== 'audio');
+
+    undoBtn.classList.toggle('hidden', newMode !== 'icon');
+    redoBtn.classList.toggle('hidden', newMode !== 'icon');
+    
+    const generateBtnText = document.querySelector('#generate-btn span');
+    if (generateBtnText) {
+      if (newMode === 'icon') generateBtnText.textContent = 'Generate Icon';
+      else if (newMode === 'video') generateBtnText.textContent = 'Generate Video';
+      else generateBtnText.textContent = 'Generate Audio';
+    }
+    
+    if (!isInitialLoad) {
+      if(mediaContainer) mediaContainer.innerHTML = '';
+      if(resultContent) resultContent.classList.add('hidden');
+      if(errorMessage) errorMessage.classList.add('hidden');
+      saveSessionState();
+    }
+    updateButtonStates();
+  };
+  
+  const handleKeyDown = (event: KeyboardEvent) => {
+    const isModifier = event.ctrlKey || event.metaKey;
+
+    if (isModifier && event.key === 'Enter') {
+      event.preventDefault();
+      if (!generateBtn.disabled) {
+        handleGeneration();
+      }
+    } else if (isModifier && event.key === 'z') {
+      event.preventDefault();
+      if (!undoBtn.disabled) {
+        undo();
+      }
+    } else if (isModifier && (event.key === 'y' || (event.shiftKey && event.key === 'Z'))) {
+      event.preventDefault();
+      if (!redoBtn.disabled) {
+        redo();
+      }
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      if (!clearBtn.disabled) {
+        clearUI();
+      }
+    }
+  };
+
+  const suggestPrompt = () => {
+    const suggestions = PROMPT_SUGGESTIONS[currentMode] || [];
+    if (suggestions.length > 0) {
+        const randomIndex = Math.floor(Math.random() * suggestions.length);
+        promptInput.value = suggestions[randomIndex];
+        updateButtonStates();
+        saveSessionState();
+    }
+  };
+  
+  const initialize = () => {
     generateBtn.addEventListener('click', handleGeneration);
     clearBtn.addEventListener('click', clearUI);
     undoBtn.addEventListener('click', undo);
     redoBtn.addEventListener('click', redo);
-    suggestPromptBtn.addEventListener('click', suggestPrompt);
     downloadAllBtn.addEventListener('click', downloadAllAsZip);
-    
+    suggestPromptBtn.addEventListener('click', suggestPrompt);
+
+    savePresetBtn.addEventListener('click', savePreset);
+    presetsSelect.addEventListener('change', () => {
+        const selectedPreset = presetsSelect.value;
+        if(selectedPreset) {
+            loadPreset(selectedPreset);
+            deletePresetBtn.disabled = false;
+        } else {
+            deletePresetBtn.disabled = true;
+        }
+    });
+    deletePresetBtn.addEventListener('click', deletePreset);
+
     modeIconBtn.addEventListener('click', () => switchMode('icon'));
     modeVideoBtn.addEventListener('click', () => switchMode('video'));
     modeAudioBtn.addEventListener('click', () => switchMode('audio'));
-    
-    savePresetBtn.addEventListener('click', saveCurrentPreset);
-    presetsSelect.addEventListener('change', loadSelectedPreset);
-    deletePresetBtn.addEventListener('click', deleteSelectedPreset);
-    
-    // Session save event listeners
-    promptInput.addEventListener('input', saveSessionState);
-    negativePromptInput.addEventListener('input', saveSessionState);
-    document.querySelectorAll('input[name="format"], input[name="icon-style"], input[name="quality"], input[name="number-of-icons"]').forEach(radio => {
-        radio.addEventListener('change', saveSessionState);
-    });
-    document.querySelectorAll('input[name="video-quality"], input[name="video-style"], input[name="video-audio-track"], input[name="video-aspect-ratio"], input[name="video-resolution"], input[name="video-duration"]').forEach(radio => {
-      radio.addEventListener('change', saveSessionState);
-    });
-    document.querySelectorAll('input[name="audio-voice"], input[name="audio-accent"], input[name="audio-tone"]').forEach(radio => {
-      radio.addEventListener('change', saveSessionState);
-    });
-    aspectRatioSelect.addEventListener('change', saveSessionState);
-    backgroundColorPicker.addEventListener('input', saveSessionState);
-    transparencyToggle.addEventListener('change', () => {
-      updateTransparencyControls();
-      saveSessionState();
-    });
 
     ffmpegToggle.addEventListener('change', () => {
-      ffmpegCommandsInput.disabled = !ffmpegToggle.checked;
+        ffmpegCommandsInput.disabled = !ffmpegToggle.checked;
+        saveSessionState();
+    });
+    
+    textOverlayToggle.addEventListener('change', () => {
+      const isDisabled = !textOverlayToggle.checked;
+      textOverlayInput.disabled = isDisabled;
+      textOverlayPositionRadios.forEach(radio => (radio as HTMLInputElement).disabled = isDisabled);
       saveSessionState();
     });
-    ffmpegCommandsInput.addEventListener('input', saveSessionState);
-
+    
+    videoChromaKeyToggle.addEventListener('change', () => {
+        videoChromaKeyColorPicker.disabled = !videoChromaKeyToggle.checked;
+        saveSessionState();
+    });
 
     document.addEventListener('keydown', handleKeyDown);
 
+    const inputsToSave = [
+        promptInput, negativePromptInput, aspectRatioSelect, backgroundColorPicker,
+        transparencyToggle, ffmpegCommandsInput, textOverlayInput,
+        videoChromaKeyColorPicker, audioDurationInput
+    ];
+    inputsToSave.forEach(el => el.addEventListener('input', saveSessionState));
+    
+    const radiosAndCheckboxesToSave = document.querySelectorAll(
+      'input[type="radio"], input[type="checkbox"]'
+    );
+    radiosAndCheckboxesToSave.forEach(el => el.addEventListener('change', saveSessionState));
+
+    populatePresetsDropdown();
+    populatePromptHistoryDatalist();
     loadSessionState();
+    updateButtonStates();
+    
+    transparencyToggle.addEventListener('change', () => {
+        backgroundColorPicker.disabled = transparencyToggle.checked;
+        if (transparencyToggle.checked) {
+            const pngRadio = document.getElementById('format-png') as HTMLInputElement;
+            if(pngRadio) pngRadio.checked = true;
+        }
+        saveSessionState();
+    });
+    backgroundColorPicker.disabled = transparencyToggle.checked;
   };
 
   initialize();

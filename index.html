@@ -73,6 +73,22 @@
                     <input type="radio" id="style-outline" name="icon-style" value="outline sketch style">
                     <label for="style-outline">Outline</label>
                   </div>
+                   <div class="radio-option">
+                    <input type="radio" id="style-vaporwave" name="icon-style" value="vaporwave aesthetic">
+                    <label for="style-vaporwave">Vaporwave</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="style-cyberpunk" name="icon-style" value="cyberpunk art style">
+                    <label for="style-cyberpunk">Cyberpunk</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="style-watercolor" name="icon-style" value="watercolor painting style">
+                    <label for="style-watercolor">Watercolor</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="style-pixel-art" name="icon-style" value="pixel art style">
+                    <label for="style-pixel-art">Pixel Art</label>
+                  </div>
                 </div>
               </fieldset>
               <fieldset class="quality-selector">
@@ -141,25 +157,6 @@
                     <label for="transparency-toggle">Transparent</label>
                   </div>
                 </fieldset>
-            </div>
-
-            <div class="presets-container">
-              <label for="presets-select">Presets</label>
-              <div class="presets-controls">
-                <select id="presets-select">
-                  <option value="">Load a preset...</option>
-                </select>
-                <button id="delete-preset-btn" aria-label="Delete selected preset" disabled>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                </button>
-              </div>
-              <div class="save-preset-controls">
-                <input type="text" id="preset-name-input" placeholder="Enter preset name...">
-                <button id="save-preset-btn" aria-label="Save current settings as a preset">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-                  <span>Save</span>
-                </button>
-              </div>
             </div>
         </div>
         
@@ -272,6 +269,34 @@
                 </div>
             </fieldset>
             </div>
+             <div class="text-overlay-container">
+                <fieldset>
+                    <legend>Text Overlay / Watermark</legend>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="text-overlay-toggle" name="text-overlay-toggle">
+                        <label for="text-overlay-toggle">Enable Text Overlay</label>
+                    </div>
+                    <input type="text" id="text-overlay-input" placeholder="Enter overlay text..." disabled>
+                    <div class="radio-group" id="text-overlay-position-group">
+                        <div class="radio-option">
+                            <input type="radio" id="pos-tl" name="text-overlay-position" value="top left" checked disabled>
+                            <label for="pos-tl">Top Left</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="pos-tr" name="text-overlay-position" value="top right" disabled>
+                            <label for="pos-tr">Top Right</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="pos-bl" name="text-overlay-position" value="bottom left" disabled>
+                            <label for="pos-bl">Bottom Left</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="pos-br" name="text-overlay-position" value="bottom right" disabled>
+                            <label for="pos-br">Bottom Right</label>
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
              <div class="advanced-settings-container">
                 <fieldset>
                     <legend>Advanced Settings</legend>
@@ -280,6 +305,16 @@
                         <label for="ffmpeg-toggle">Enable Custom Commands</label>
                     </div>
                     <textarea id="ffmpeg-commands-input" rows="3" placeholder="e.g., -vf 'eq=contrast=1.5:brightness=0.1' -an" disabled></textarea>
+                </fieldset>
+            </div>
+            <div class="chroma-key-container">
+                <fieldset>
+                    <legend>Chroma Key (Green Screen)</legend>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="chroma-key-toggle" name="chroma-key-toggle">
+                        <label for="chroma-key-toggle">Enable Chroma Key Background</label>
+                    </div>
+                    <input type="color" id="chroma-key-color-picker" value="#00ff00" aria-label="Select chroma key color" disabled>
                 </fieldset>
             </div>
         </div>
@@ -301,6 +336,14 @@
                             <input type="radio" id="voice-child" name="audio-voice" value="child">
                             <label for="voice-child">Child</label>
                         </div>
+                        <div class="radio-option">
+                            <input type="radio" id="voice-teenager" name="audio-voice" value="teenager">
+                            <label for="voice-teenager">Teenager</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="voice-elderly" name="audio-voice" value="elderly">
+                            <label for="voice-elderly">Elderly</label>
+                        </div>
                     </div>
                 </fieldset>
                  <fieldset class="style-selector">
@@ -317,6 +360,38 @@
                         <div class="radio-option">
                             <input type="radio" id="accent-australian" name="audio-accent" value="australian">
                             <label for="accent-australian">Australian</label>
+                        </div>
+                         <div class="radio-option">
+                            <input type="radio" id="accent-irish" name="audio-accent" value="irish">
+                            <label for="accent-irish">Irish</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="accent-scottish" name="audio-accent" value="scottish">
+                            <label for="accent-scottish">Scottish</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="accent-canadian" name="audio-accent" value="canadian">
+                            <label for="accent-canadian">Canadian</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="accent-south-african" name="audio-accent" value="south-african">
+                            <label for="accent-south-african">South African</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="accent-indian" name="audio-accent" value="indian">
+                            <label for="accent-indian">Indian</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="accent-french" name="audio-accent" value="french">
+                            <label for="accent-french">French</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="accent-german" name="audio-accent" value="german">
+                            <label for="accent-german">German</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="accent-spanish" name="audio-accent" value="spanish">
+                            <label for="accent-spanish">Spanish</label>
                         </div>
                     </div>
                 </fieldset>
@@ -337,7 +412,81 @@
                         </div>
                     </div>
                 </fieldset>
+                <fieldset class="duration-selector-audio">
+                    <legend>Duration (seconds)</legend>
+                    <input type="number" id="audio-duration-seconds" min="1" max="36000" value="10">
+                </fieldset>
+                <fieldset class="style-selector">
+                    <legend>Reverb</legend>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="reverb-none" name="audio-reverb" value="none" checked>
+                            <label for="reverb-none">None</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="reverb-small" name="audio-reverb" value="small">
+                            <label for="reverb-small">Small</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="reverb-large" name="audio-reverb" value="large">
+                            <label for="reverb-large">Large</label>
+                        </div>
+                    </div>
+                </fieldset>
+                <fieldset class="style-selector">
+                    <legend>Echo</legend>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="echo-none" name="audio-echo" value="none" checked>
+                            <label for="echo-none">None</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="echo-subtle" name="audio-echo" value="subtle">
+                            <label for="echo-subtle">Subtle</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="echo-strong" name="audio-echo" value="strong">
+                            <label for="echo-strong">Strong</label>
+                        </div>
+                    </div>
+                </fieldset>
+                <fieldset class="quality-selector">
+                    <legend>Pitch</legend>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="pitch-low" name="audio-pitch" value="low">
+                            <label for="pitch-low">Low</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="pitch-normal" name="audio-pitch" value="normal" checked>
+                            <label for="pitch-normal">Normal</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="pitch-high" name="audio-pitch" value="high">
+                            <label for="pitch-high">High</label>
+                        </div>
+                    </div>
+                </fieldset>
             </div>
+        </div>
+
+        <div class="presets-container">
+          <label for="presets-select">Presets</label>
+          <div class="presets-controls">
+            <select id="presets-select">
+              <option value="">Load a preset...</option>
+            </select>
+            <button id="delete-preset-btn" aria-label="Delete selected preset" disabled>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+          </div>
+          <div class="save-preset-controls">
+            <input type="text" id="preset-name-input" placeholder="Enter preset name...">
+            <button id="save-preset-btn" aria-label="Save current settings as a preset">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+              <span>Save</span>
+            </button>
+          </div>
         </div>
 
         <div class="button-group">

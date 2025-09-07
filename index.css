@@ -699,12 +699,12 @@ button#redo-btn:active {
   display: none !important;
 }
 
-.advanced-settings-container {
+.text-overlay-container, .advanced-settings-container, .chroma-key-container {
   border-top: 1px solid #e0e0e0;
   padding-top: 1.5rem;
 }
 
-.advanced-settings-container fieldset {
+.text-overlay-container fieldset, .advanced-settings-container fieldset, .chroma-key-container fieldset {
   border: none;
   padding: 0;
   margin: 0;
@@ -713,7 +713,7 @@ button#redo-btn:active {
   gap: 0.75rem;
 }
 
-.advanced-settings-container legend {
+.text-overlay-container legend, .advanced-settings-container legend, .chroma-key-container legend {
     font-size: 0.875rem;
     font-weight: 500;
     color: #5f6368;
@@ -721,8 +721,106 @@ button#redo-btn:active {
     margin-bottom: 0.25rem;
 }
 
+#text-overlay-input {
+  width: 100%;
+  padding: 0.75rem;
+  font-family: inherit;
+  font-size: 1rem;
+  background-color: var(--surface-color);
+  color: var(--on-surface-color);
+  border: 1px solid #dadce0;
+  border-radius: var(--border-radius);
+  transition: border-color 0.3s, box-shadow 0.3s, background-color 0.3s, opacity 0.3s;
+}
+
+#text-overlay-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(98, 0, 238, 0.2);
+}
+
+#text-overlay-input:disabled {
+  background-color: #f1f3f4;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+#text-overlay-position-group input[type="radio"]:disabled + label {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: #f1f3f4;
+}
+
 textarea#ffmpeg-commands-input:disabled {
   background-color: #f1f3f4;
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+#chroma-key-color-picker {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 100%;
+  max-width: 150px;
+  height: 38px;
+  background-color: transparent;
+  border: 1px solid #dadce0;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+#chroma-key-color-picker::-webkit-color-swatch {
+  border-radius: 4px;
+  border: none;
+}
+#chroma-key-color-picker::-moz-color-swatch {
+  border-radius: 4px;
+  border: none;
+}
+
+#chroma-key-color-picker:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.duration-selector-audio {
+    flex: 1;
+    border: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-width: 120px;
+}
+
+.duration-selector-audio legend {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #5f6368;
+    padding: 0;
+    margin-bottom: 0.25rem;
+}
+
+#audio-duration-seconds {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    font-family: inherit;
+    font-size: 0.875rem;
+    background-color: var(--surface-color);
+    color: var(--on-surface-color);
+    border: 1px solid #dadce0;
+    border-radius: var(--border-radius);
+}
+
+#audio-duration-seconds:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(98, 0, 238, 0.2);
+}
+
+.audio-options-group {
+    flex-wrap: wrap;
 }
